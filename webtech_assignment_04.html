@@ -1,0 +1,394 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Slides Application</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            margin: 0;
+            background: whitesmoke;
+        }
+
+        header {
+            background: navy;
+            color: white;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .main {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .editor, .preview {
+            width: 50%;
+            padding: 15px;
+            background: white;
+        }
+
+        textarea {
+            width: 100%;
+            height: 300px;
+            box-sizing: border-box;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        .screen {
+            background: white;
+            padding: 10px;
+        }
+
+        .slide {
+            height: 350px;
+            padding: 20px;
+            border: 1px solid lightgray;
+            overflow: auto;
+            overflow-wrap: anywhere;
+        }
+
+        .slide h1, .slide h2, .slide h3 {
+            color: navy;
+        }
+
+        button {
+            background: royalblue;
+            color: white;
+            border: none;
+            padding: 10px;
+            margin: 3px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background: gray;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .count {
+            font-weight: bold;
+            padding: 8px;
+        }
+
+        #presentationScreen {
+            display: none;
+            margin: 20px;
+        }
+
+        #presentationScreen .slide {
+            height: 60vh;
+        }
+
+        #previewScreen:fullscreen,
+        #presentationPanel:fullscreen {
+            background: white;
+            padding: 15px;
+        }
+
+        #previewScreen:fullscreen .slide,
+        #presentationPanel:fullscreen .slide {
+            height: 75vh;
+        }
+
+        @media (max-width: 700px) {
+            .main {
+                flex-direction: column;
+            }
+
+            .editor, .preview {
+                width: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h2>Slides Application</h2>
+    <button onclick="saveSlides()">Save Slides</button>
+</header>
+
+<!-- Editor Screen -->
+
+<div id="editorScreen">
+    <div class="main">
+
+        <div class="editor">
+            <h3>Create / Edit Markdown</h3>
+
+            <textarea id="markdown"># Welcome to My Presentation
+
+## Web Technologies Assignment 04
+
+This is my first slide.
+
+---
+
+# Second Slide
+
+This is my second slide.
+
+---
+
+# Third Slide
+
+This is my third slide.</textarea>
+
+            <br><br>
+
+            <button onclick="newSlides()">Create New Slides</button>
+            <button onclick="saveSlides()">Save Slides</button>
+            <button onclick="presentSlides()">Present Slides</button>
+        </div>
+
+        <div class="preview">
+            <h3>Live Preview</h3>
+
+            <div id="previewScreen" class="screen">
+                <div id="previewSlide" class="slide"></div>
+
+                <div class="controls">
+                    <button id="previewLeft" onclick="moveSlide(-1)">Left</button>
+                    <span id="previewCount" class="count"></span>
+                    <button id="previewRight" onclick="moveSlide(1)">Right</button>
+                    <button id="previewFull" onclick="fullScreen('previewScreen')">Full Screen</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Presentation Screen -->
+
+<div id="presentationScreen">
+    <h2>Presentation Mode</h2>
+
+    <div id="presentationPanel" class="screen">
+        <div id="presentationSlide" class="slide"></div>
+
+        <div class="controls">
+            <button id="presentationLeft" onclick="moveSlide(-1)">Left</button>
+            <span id="presentationCount" class="count"></span>
+            <button id="presentationRight" onclick="moveSlide(1)">Right</button>
+            <button id="presentationFull" onclick="fullScreen('presentationPanel')">Full Screen</button>
+        </div>
+    </div>
+
+    <button onclick="exitPresentation()">Back to Editor</button>
+</div>
+
+<script>
+    let markdown = document.getElementById("markdown");
+    let slides = [];
+    let current = 0;
+
+    // Convert Markdown headings and text
+    function convertMarkdown(text) {
+        let lines = text.split("\n");
+        let result = "";
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+
+            if (line.startsWith("### ")) {
+                result += "<h3>" + line.substring(4) + "</h3>";
+            } else if (line.startsWith("## ")) {
+                result += "<h2>" + line.substring(3) + "</h2>";
+            } else if (line.startsWith("# ")) {
+                result += "<h1>" + line.substring(2) + "</h1>";
+            } else if (line.startsWith("- ")) {
+                result += "• " + line.substring(2) + "<br>";
+            } else {
+                result += line + "<br>";
+            }
+        }
+
+        return result;
+    }
+
+    // Show the current slide
+    function showSlide() {
+        slides = markdown.value.split("---");
+
+        // Remove extra spaces and empty slides
+        let newSlides = [];
+
+        for (let i = 0; i < slides.length; i++) {
+            if (slides[i].trim() !== "") {
+                newSlides.push(slides[i]);
+            }
+        }
+
+        slides = newSlides;
+
+        if (slides.length === 0) {
+            slides = ["# New Slide"];
+        }
+
+        if (current >= slides.length) {
+            current = slides.length - 1;
+        }
+
+        if (current < 0) {
+            current = 0;
+        }
+
+        let content = convertMarkdown(slides[current]);
+
+        document.getElementById("previewSlide").innerHTML = content;
+        document.getElementById("presentationSlide").innerHTML = content;
+
+        document.getElementById("previewCount").innerText =
+            (current + 1) + " / " + slides.length;
+
+        document.getElementById("presentationCount").innerText =
+            (current + 1) + " / " + slides.length;
+
+        document.getElementById("previewLeft").disabled = current === 0;
+        document.getElementById("presentationLeft").disabled = current === 0;
+
+        document.getElementById("previewRight").disabled =
+            current === slides.length - 1;
+
+        document.getElementById("presentationRight").disabled =
+            current === slides.length - 1;
+    }
+
+    // Move between slides
+    function moveSlide(number) {
+        current = current + number;
+        showSlide();
+    }
+
+    // Update preview when editing
+    markdown.oninput = function() {
+        current = 0;
+        showSlide();
+    };
+
+    // Create a new presentation
+    function newSlides() {
+        if (confirm("Create a new presentation?")) {
+            markdown.value = "# New Slide\nWrite your content here.";
+            current = 0;
+            showSlide();
+        }
+    }
+
+    // Save slides
+    function saveSlides() {
+        localStorage.setItem("mySlides", markdown.value);
+        alert("Slides saved!");
+    }
+
+    // Load saved slides
+    let savedSlides = localStorage.getItem("mySlides");
+
+    if (savedSlides !== null) {
+        markdown.value = savedSlides;
+    }
+
+    // Open presentation mode
+    function presentSlides() {
+        document.getElementById("editorScreen").style.display = "none";
+        document.getElementById("presentationScreen").style.display = "block";
+        showSlide();
+    }
+
+    // Return to editor
+    function exitPresentation() {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        }
+
+        document.getElementById("presentationScreen").style.display = "none";
+        document.getElementById("editorScreen").style.display = "block";
+        showSlide();
+    }
+
+    // Enter or exit fullscreen
+    function fullScreen(id) {
+        let panel = document.getElementById(id);
+
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else {
+            panel.requestFullscreen();
+        }
+    }
+
+    // Update fullscreen button text
+    document.addEventListener("fullscreenchange", function() {
+        let previewButton = document.getElementById("previewFull");
+        let presentationButton = document.getElementById("presentationFull");
+
+        if (document.fullscreenElement === document.getElementById("previewScreen")) {
+            previewButton.innerText = "Exit Full Screen";
+        } else {
+            previewButton.innerText = "Full Screen";
+        }
+
+        if (document.fullscreenElement === document.getElementById("presentationPanel")) {
+            presentationButton.innerText = "Exit Full Screen";
+        } else {
+            presentationButton.innerText = "Full Screen";
+        }
+    });
+
+    // Keyboard shortcuts
+    document.onkeydown = function(event) {
+        if (event.ctrlKey && event.key === "s") {
+            event.preventDefault();
+            saveSlides();
+            return;
+        }
+
+        if (event.key === "F11") {
+            event.preventDefault();
+
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else if (
+                document.getElementById("presentationScreen").style.display === "block"
+            ) {
+                fullScreen("presentationPanel");
+            } else {
+                fullScreen("previewScreen");
+            }
+
+            return;
+        }
+
+        // Do not change slides while typing
+        if (event.target === markdown) {
+            return;
+        }
+
+        if (event.key === "ArrowLeft") {
+            moveSlide(-1);
+        }
+
+        if (event.key === "ArrowRight") {
+            moveSlide(1);
+        }
+    };
+
+    // Display the first slide
+    showSlide();
+</script>
+
+</body>
+</html>
